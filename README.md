@@ -1,6 +1,6 @@
-# Wedding Invitation Sender
+# Personalized Invitation Sender
 
-Personalizes wedding invitation images with each guest's name and sends them via WhatsApp Web with a custom message.
+Personalizes invitation images with each guest's name and sends them via WhatsApp Web with a custom message.
 
 ---
 
