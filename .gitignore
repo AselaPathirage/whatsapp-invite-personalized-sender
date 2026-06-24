@@ -1,0 +1,13 @@
+# Generated invitation images
+invitations/
+
+# Base invitation image (private)
+base_inv.png
+
+# Chrome WhatsApp login profile
+.whatsapp_sender_profile/
+
+# macOS & Python
+.DS_Store
+__pycache__/
+*.pyc
