@@ -2,7 +2,7 @@
 invitations/
 
 # Base invitation image (private)
-base_inv.png
+base*.png
 
 # Chrome WhatsApp login profile
 .whatsapp_sender_profile/
@@ -11,3 +11,5 @@ base_inv.png
 .DS_Store
 __pycache__/
 *.pyc
+
+*.csv
