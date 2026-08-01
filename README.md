@@ -23,6 +23,11 @@ Personalizes invitation images with each guest's name and sends them via WhatsAp
 pip install selenium Pillow
 ```
 
+**Windows only** — also install:
+```bash
+pip install pywin32
+```
+
 Chrome is required. On first run, WhatsApp Web will ask you to scan a QR code. Your login is saved after that, so you only scan once.
 
 ---

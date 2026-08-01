@@ -12,13 +12,15 @@
      python send_invitations.py --dry-run
 
   INSTALL
-  pip install selenium Pillow
+  pip install selenium Pillow          # all platforms
+  pip install pywin32                  # Windows only
 ======================================================================
 """
 
 import argparse
 import csv
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -31,6 +33,16 @@ from selenium.webdriver.support import expected_conditions as EC
 
 from make_invitations import personalize, safe_filename, FONT, BASE_IMAGE
 
+IS_WINDOWS = sys.platform == "win32"
+CTRL_KEY   = Keys.CONTROL if IS_WINDOWS else Keys.COMMAND
+
+# ---------------------------------------------------------------- CONFIG
+CHAT_LOAD_TIMEOUT = 60   # seconds to wait for WhatsApp Web chat to load
+GAP_BETWEEN       = 5    # seconds between guests
+CSV_FILE          = "guests.csv"
+OUT_DIR           = Path("invitations")
+PROFILE_DIR       = str(Path.home() / ".whatsapp_sender_profile")  # persists login
+
 # ---------------------------------------------------------------- MESSAGE
 MESSAGE_TEMPLATE = """\
 Dear {display_name},
@@ -40,12 +52,37 @@ custom message here
 With all our love
 """
 
-# ---------------------------------------------------------------- CONFIG
-CHAT_LOAD_TIMEOUT = 60   # seconds to wait for WhatsApp Web chat to load
-GAP_BETWEEN       = 5    # seconds between guests
-CSV_FILE          = "guests.csv"
-OUT_DIR           = Path("invitations")
-PROFILE_DIR       = str(Path.home() / ".whatsapp_sender_profile")  # persists login
+# ---------------------------------------------------------------- CLIPBOARD
+def _copy_image_to_clipboard(img_path_abs):
+    """Copy an image file to the system clipboard (cross-platform)."""
+    if IS_WINDOWS:
+        import io
+        import win32clipboard
+        from PIL import Image
+
+        image = Image.open(img_path_abs)
+        output = io.BytesIO()
+        image.convert("RGB").save(output, "BMP")
+        data = output.getvalue()[14:]   # strip the 14-byte BMP file header
+        output.close()
+
+        win32clipboard.OpenClipboard()
+        win32clipboard.EmptyClipboard()
+        win32clipboard.SetClipboardData(win32clipboard.CF_DIB, data)
+        win32clipboard.CloseClipboard()
+    else:
+        subprocess.run([
+            'osascript', '-e',
+            f'set the clipboard to (read (POSIX file "{img_path_abs}") as JPEG picture)',
+        ], check=True)
+
+
+def _copy_text_to_clipboard(text):
+    """Copy text to the system clipboard (cross-platform)."""
+    if IS_WINDOWS:
+        subprocess.run('clip', input=text.encode('utf-16'), check=True, shell=True)
+    else:
+        subprocess.run(['pbcopy'], input=text.encode('utf-8'), check=True)
 
 # ---------------------------------------------------------------- BROWSER
 def get_driver():
@@ -89,12 +126,9 @@ def send_image(driver, phone, img_path_abs, message):
     )
     time.sleep(2)
 
-    # 1. Copy image to clipboard via osascript, then paste into compose box.
+    # 1. Copy image to clipboard, then paste into compose box.
     #    This routes the image through Photos & Videos (not sticker mode).
-    subprocess.run([
-        'osascript', '-e',
-        f'set the clipboard to (read (POSIX file "{img_path_abs}") as JPEG picture)',
-    ], check=True)
+    _copy_image_to_clipboard(img_path_abs)
     time.sleep(0.5)
 
     compose = _find(driver, 10,
@@ -102,7 +136,7 @@ def send_image(driver, phone, img_path_abs, message):
         '//div[@contenteditable="true"][@data-tab="10"]',
     )
     compose.click()
-    ActionChains(driver).key_down(Keys.COMMAND).send_keys('v').key_up(Keys.COMMAND).perform()
+    ActionChains(driver).key_down(CTRL_KEY).send_keys('v').key_up(CTRL_KEY).perform()
     time.sleep(2)
 
     # 2. Type personalised message in the caption field via clipboard
@@ -113,8 +147,8 @@ def send_image(driver, phone, img_path_abs, message):
     )
     driver.execute_script("arguments[0].click();", caption)
     time.sleep(0.3)
-    subprocess.run(['pbcopy'], input=message.encode('utf-8'), check=True)
-    ActionChains(driver).key_down(Keys.COMMAND).send_keys('v').key_up(Keys.COMMAND).perform()
+    _copy_text_to_clipboard(message)
+    ActionChains(driver).key_down(CTRL_KEY).send_keys('v').key_up(CTRL_KEY).perform()
     time.sleep(0.5)
 
     # 3. Send
